@@ -309,17 +309,27 @@ function phase_docker(){
 function phase_greenbone(){
   log_section "PHASE 3 - Greenbone Community Edition Setup"
 
-  local COMPOSE_URL="https://github.com/0xAlphaSec/Greenbone-CE-Docker-Installer/blob/main/compose.yaml"
+  local SCRIPT_DIR
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  local SOURCE_COMPOSE="$SCRIPT_DIR/compose.yaml"
   local COMPOSE_FILE="$INSTALL_DIR/compose.yaml"
 
-  mkdir -p "$INSTALL_DIR"
-
-  log_info "Downloading compose.yaml from repository..."
-  if ! curl -fsSL "$COMPOSE_URL" -o "$COMPOSE_FILE"; then
-    log_error "Failed to download compose.yaml. Check your internet connection or repo URL."
+  if [ ! -f "$SOURCE_COMPOSE" ]; then
+    log_error "compose.yaml not found in $SCRIPT_DIR"
+    log_error "Make sure you cloned the full repository and are running the script from it."
     tput cnorm; exit 1
   fi
-  log_ok "compose.yaml downloaded to $INSTALL_DIR"
+
+mkdir -p "$INSTALL_DIR"
+
+# Copy only if INSTALL_DIR differs from the repo directory
+  if [ "$SCRIPT_DIR" != "$INSTALL_DIR" ]; then
+    log_info "Copying compose.yaml to $INSTALL_DIR..."
+    cp "$SOURCE_COMPOSE" "$COMPOSE_FILE"
+    log_ok "compose.yaml ready at $INSTALL_DIR"
+  else
+    log_ok "compose.yaml already in place at $INSTALL_DIR"
+  fi
 
   # Network mode: patch nginx ports if LAN
   if [ "$NETWORK_MODE" = "lan" ]; then
