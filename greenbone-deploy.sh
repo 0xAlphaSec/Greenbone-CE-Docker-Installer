@@ -177,7 +177,7 @@ function phase_cleanup_partial(){
 
     log_info "Removing Greenbone images..."  
     if docker images --format '{{.Repository}}' 2>/dev/null | grep -q "greenbone"; then
-        docker images --format '{{-Repository}}:{{.Tag}}' | grep greenbone | xargs docker rmi -f &>/dev/null
+        docker images --format '{{.Repository}}:{{.Tag}}' | grep greenbone | xargs docker rmi -f &>/dev/null
         log_ok "Greenbone images removed."
     else
         log_info "No Greenbone images found."
