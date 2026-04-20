@@ -98,7 +98,7 @@ function ask_network_mode(){
     echo -e "  ${turquoiseColour}[1]${endColour}${grayColour} Localhost only (http://localhost - default, more secure)${endColour}"
     echo -e "  ${turquoiseColour}[2]${endColour}${grayColour} Local Network (https://<IP> - accesible from other machines)${endColour}"
     echo ""
-    echo -ne "  ${grayColour}Choose [1/2]${endColour}"
+    echo -ne "  ${grayColour}Choose [1/2]: ${endColour}"
     read -r net_choice
     echo ""
 
