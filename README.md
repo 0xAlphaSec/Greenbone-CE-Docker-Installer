@@ -1,9 +1,9 @@
 # Greenbone Community Edition — Docker Installer
- 
+
 Automated installer script for deploying **Greenbone Community Edition (GCE)** via Docker on Ubuntu-based systems.
- 
+
 ## What it does
- 
+
 - Removes conflicting legacy Docker packages
 - Installs Docker CE and Docker Compose Plugin from the official repository
 - Offers partial or deep Docker cleanup if Docker is already installed
@@ -13,54 +13,56 @@ Automated installer script for deploying **Greenbone Community Edition (GCE)** v
 - Pulls and starts all required containers
 - Waits for `gvmd` to be healthy
 - Sets the admin password interactively
+
 ## Requirements
- 
+
 - Ubuntu 22.04 or 24.04 (other Debian derivatives likely work)
 - Internet access
 - Run as root / sudo
 - ~8 GB of free disk space
+
 ## Usage
- 
+
 ```bash
 git clone https://github.com/0xAlphaSec/Greenbone-CE-Docker-Installer.git
 cd Greenbone-CE-Docker-Installer
 sudo bash greenbone-deploy.sh
 ```
- 
+
 The script is fully interactive — it asks everything it needs before making any changes.
- 
+
 ## Web interface
- 
+
 | Option | URL | Notes |
 |---|---|---|
-| Localhost only | `http://localhost` | Default, more secure |
+| Localhost only | `https://localhost` | Default, more secure |
 | Local network | `https://<host-ip>` | Accessible from other machines on the network |
- 
+
 > ⚠️ Feed sync can take 15–20 minutes after first start. Wait before launching scans.
- 
+
 ## After installation
- 
-The `compose.yaml` is stored in the directory you chose during setup (default: `/opt/greenbone`).
- 
+
+The `compose.yaml` stays in the cloned repository directory.
+
 ```bash
 # Check status
-docker compose -f /opt/greenbone/compose.yaml ps
- 
+docker compose -f ~/Greenbone-CE-Docker-Installer/compose.yaml ps
+
 # Stop
-docker compose -f /opt/greenbone/compose.yaml down
- 
+docker compose -f ~/Greenbone-CE-Docker-Installer/compose.yaml down
+
 # Start
-docker compose -f /opt/greenbone/compose.yaml up -d
- 
+docker compose -f ~/Greenbone-CE-Docker-Installer/compose.yaml up -d
+
 # Update images
-docker compose -f /opt/greenbone/compose.yaml pull
-docker compose -f /opt/greenbone/compose.yaml up -d
+docker compose -f ~/Greenbone-CE-Docker-Installer/compose.yaml pull
+docker compose -f ~/Greenbone-CE-Docker-Installer/compose.yaml up -d
 ```
- 
+
 ## Changelog
- 
+
 See [CHANGELOG.md](CHANGELOG.md) for version history.
- 
+
 ## Author
- 
+
 **Jesús Fernández** — [@0xAlphaSec](https://github.com/0xAlphaSec)
