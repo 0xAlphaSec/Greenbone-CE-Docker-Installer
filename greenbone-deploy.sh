@@ -132,7 +132,7 @@ function ask_clean_mode(){
     read -r clean_choice
     echo ""
 
-    case "clean_choice" in
+    case "$clean_choice" in
         1)
             CLEAN_MODE="partial"
             log_ok "Partial cleanup selected"
@@ -185,7 +185,7 @@ function phase_cleanup_partial(){
   
     log_info "Removing Greenbone volumes..."
     if docker volume ls --format '{{.Name}}' 2>/dev/null | grep -q "greenbone"; then
-        docker volume ls --format '{{.Name}}' | grep -q "greenbone" | xargs docker volume rm -f &>/dev/null
+        docker volume ls --format '{{.Name}}' | grep "greenbone" | xargs docker volume rm -f &>/dev/null
         log_ok "Greenbone volumes removed."
     else
         log_info "No Greenbone volumes found."
@@ -225,7 +225,7 @@ function check_disk_space(){
     # If INSTALL_DIR doesn't exist yet, check its nearest existing parent
     local check_dir="$target_dir"
     while [ ! -d "$check_dir" ]; do
-        check_dir=$(dirname "check_dir")
+        check_dir=$(dirname "$check_dir")
     done
 
     local free_gb
@@ -379,7 +379,7 @@ mkdir -p "$INSTALL_DIR"
   else
     log_ok "gvmd is healthy."
     log_info "Setting admin password..."
-    docker compose -f "$DOWNLOAD_DIR/compose.yaml" \
+    docker compose -f "$COMPOSE_FILE/compose.yaml" \
       exec -u gvmd gvmd gvmd --user=admin --new-password="$adminPassword" &>/dev/null
     log_ok "Admin password set."
   fi
@@ -391,7 +391,7 @@ mkdir -p "$INSTALL_DIR"
 function summary(){
   local acces_url
   
-  if [ "NETWORK_MODE" = "lan" ]; then
+  if [ "$NETWORK_MODE" = "lan" ]; then
     local host_ip
     host_ip=$(hostname -I | awk '{print $1}')
     acces_url="https://${host_ip}"
