@@ -1,36 +1,38 @@
 # Changelog
- 
+
 All notable changes to this project are documented here.
- 
+
 ---
- 
+
 ## [v2.0] — 2026-04-18
- 
+
 ### Added
- 
-- **Selectable install directory** — The user can now choose where `compose.yaml` is stored. Defaults to `/opt/greenbone` instead of `$HOME`, which is more appropriate when running as root via `sudo`.
+
 - **Web interface access mode** — New interactive prompt to choose between localhost-only (`127.0.0.1`) and local network exposure (`0.0.0.0`). When local network is selected, the script automatically patches the nginx port bindings in `compose.yaml`, changing the bind address from `127.0.0.1` to `0.0.0.0`.
 - **Dynamic summary** — The final summary now shows `https://localhost` or `https://<IP>` depending on the access mode chosen.
 - **Docker cleanup menu** — When Docker is already installed, the script detects it and presents three options: partial cleanup (Greenbone only), deep cleanup (all Docker data, requires typing `CONFIRM`), or skip. The menu is skipped entirely on a fresh machine where Docker is not yet present.
 - **Partial cleanup now removes volumes** — The Greenbone-only cleanup now also removes related Docker volumes, not just containers and images, to prevent conflicts on reinstall.
 - **Disk space check** — Before pulling images, the script checks available space on the target filesystem. Warns below 8 GB, blocks below 4 GB with an option to abort cleanly.
 - **Upstream sync workflow** — `.github/workflows/sync-compose.yml` runs every Monday and opens a GitHub issue if the official Greenbone compose file has changed upstream. Avoids duplicating the issue if one is already open.
+
 ### Changed
- 
-- **`compose.yaml` bundled in the repository** — The installer no longer downloads the compose file at runtime. Since the repository is cloned before running the script, `compose.yaml` is already present locally. The script locates it relative to its own path and copies it to the chosen install directory if needed. This also removes the need for the `gsa:stable-slim` → `gsa:stable` fix that was applied inline in v1.0.
+
+- **`compose.yaml` bundled in the repository** — The installer no longer downloads the compose file at runtime. Since the repository is cloned before running the script, `compose.yaml` is already present locally. The script locates it relative to its own path using `BASH_SOURCE[0]` and uses it directly — no copies, no separate install directory. This also removes the need for the `gsa:stable-slim` → `gsa:stable` fix that was applied inline in v1.0.
 - **Port and URL updated** — The web interface now uses HTTPS on port 443 via nginx (`gvm-config` container). Port 9392 redirects to 443. The summary no longer shows `:9392` in the URL.
 - **Cleanup logic restructured** — Phase 1 is now split into `phase_cleanup_partial` and `phase_cleanup_deep`, dispatched from a `case` block in main based on `CLEAN_MODE`.
 - **Legacy package removal always runs** — Even when the user skips cleanup, conflicting legacy Docker packages (`docker.io`, `docker-compose`, `podman-docker`, etc.) are always removed before the Docker installation phase.
+
 ### Fixed
- 
+
 - `SUDO_USER` check in the Docker phase now has a fallback warning instead of silently failing when the variable is empty.
 - `docker images` format string had a typo (`{{-Repository}}`) in v1.0 — corrected to `{{.Repository}}`.
+
 ---
- 
-## [v1.0] — 2026
- 
+
+## [v1.0] — 2025
+
 ### Added
- 
+
 - Initial release.
 - Automated Docker CE installation from the official repository.
 - Greenbone Community Edition setup via `compose.yaml` downloaded from the official Greenbone docs URL.
