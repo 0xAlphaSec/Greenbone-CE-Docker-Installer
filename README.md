@@ -65,4 +65,4 @@ See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 ## Author
 
-**Jesús Fernández** — [@0xAlphaSec](https://github.com/0xAlphaSec)
+**Jesús Fernández** — [jfg.sec](https://www.instagram.com/jfg.sec) — [LinkedIn](https://www.linkedin.com/in/jesus-fernandez-gervasi)
