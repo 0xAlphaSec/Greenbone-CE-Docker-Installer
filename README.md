@@ -4,19 +4,20 @@ Automated installer script for deploying **Greenbone Community Edition (GCE)** v
 
 ## What it does
 
+- Asks all configuration questions upfront before making any changes
 - Removes conflicting legacy Docker packages
 - Installs Docker CE and Docker Compose Plugin from the official repository
 - Offers partial or deep Docker cleanup if Docker is already installed
-- Checks available disk space before pulling images
-- Uses `compose.yaml` included in the repository (no external download needed)
-- Configures web interface access (localhost or local network)
-- Pulls and starts all required containers
-- Waits for `gvmd` to be healthy
+- Checks available disk space before pulling images (recommends 8 GB minimum)
+- Uses `compose.yaml` included in the repository — no external download needed
+- Configures web interface access (localhost only or local network / LAN)
+- Pulls and starts all required Greenbone containers
+- Waits for `gvmd` to reach healthy state before proceeding
 - Sets the admin password interactively
 
 ## Requirements
 
-- Ubuntu 22.04 or 24.04 (other Debian derivatives likely work)
+- Ubuntu 22.04 or 24.04 (other Debian-based distributions likely work)
 - Internet access
 - Run as root / sudo
 - ~8 GB of free disk space
@@ -36,16 +37,26 @@ The script is fully interactive — it asks everything it needs before making an
 | Option | URL | Notes |
 |---|---|---|
 | Localhost only | `https://localhost` | Default, more secure |
-| Local network | `https://<host-ip>` | Accessible from other machines on the network |
+| Local network | `https://<host-ip>` | Accessible from other machines on the same network |
 
 > ⚠️ Feed sync can take 15–20 minutes after first start. Wait before launching scans.
+
+## Cleanup options
+
+If Docker is already installed, the script offers three options:
+
+| Option | What it removes |
+|---|---|
+| Partial cleanup | Only Greenbone containers, images and volumes |
+| Deep cleanup | All Docker data on the machine (irreversible — requires explicit confirmation) |
+| Skip | No cleanup, proceed directly to installation |
 
 ## After installation
 
 The `compose.yaml` stays in the cloned repository directory.
 
 ```bash
-# Check status
+# Check container status
 docker compose -f ~/Greenbone-CE-Docker-Installer/compose.yaml ps
 
 # Stop
