@@ -1,27 +1,26 @@
 name: Check upstream compose.yaml for changes
- 
+
 on:
   schedule:
-    # Runs every Monday at 08:00 UTC
     - cron: "0 8 * * 1"
-  workflow_dispatch:  # Allow manual trigger
- 
+  workflow_dispatch:
+
 jobs:
   check-upstream:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       issues: write
- 
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
- 
+
       - name: Download upstream compose.yaml
         run: |
           curl -fsSL "https://greenbone.github.io/docs/latest/_static/compose.yaml" \
             -o compose_upstream.yaml
- 
+
       - name: Compare with current compose.yaml
         id: diff
         run: |
@@ -38,7 +37,7 @@ jobs:
             } >> "$GITHUB_OUTPUT"
             echo "Changes detected upstream."
           fi
- 
+
       - name: Check if a notification issue is already open
         if: steps.diff.outputs.changed == 'true'
         id: check_issue
@@ -51,40 +50,36 @@ jobs:
             --json number \
             --jq 'length')
           echo "open_count=$OPEN" >> "$GITHUB_OUTPUT"
- 
+
       - name: Open notification issue
-  if: steps.diff.outputs.changed == 'true' && steps.check_issue.outputs.open_count == '0'
-  env:
-    GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    DIFF_CONTENT: ${{ steps.diff.outputs.diff_output }}
-  run: |
-    cat > /tmp/issue_body.md << 'BODYEOF'
-    ## Upstream compose.yaml update detected
+        if: steps.diff.outputs.changed == 'true' && steps.check_issue.outputs.open_count == '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DIFF_CONTENT: ${{ steps.diff.outputs.diff_output }}
+        run: |
+          {
+            echo "## Upstream compose.yaml update detected"
+            echo ""
+            echo "The official Greenbone compose file has changed since your last manual review."
+            echo ""
+            echo "**Source:** https://greenbone.github.io/docs/latest/_static/compose.yaml"
+            echo ""
+            echo "### What to do"
+            echo ""
+            echo "1. Review the diff below and check if any changes are relevant (new services, renamed images, new env vars, port changes, etc.)."
+            echo "2. Decide which changes to incorporate into the repo's \`compose.yaml\` — keeping your existing customizations."
+            echo "3. Update \`compose.yaml\` manually if needed, then close this issue."
+            echo ""
+            echo "### Diff (this repo vs upstream)"
+            echo ""
+            printf '```diff\n'
+            echo "$DIFF_CONTENT"
+            printf '```\n'
+            echo ""
+            echo "> This issue is opened automatically. It will not be reopened while one with the \`upstream-sync\` label is already open."
+          } > /tmp/issue_body.md
 
-    The official Greenbone compose file has changed since your last manual review.
-
-    **Source:** https://greenbone.github.io/docs/latest/_static/compose.yaml
-
-    ### What to do
-
-    1. Review the diff below and check if any changes are relevant (new services, renamed images, new env vars, port changes, etc.).
-    2. Decide which changes to incorporate into the repo's `compose.yaml` — keeping your existing customizations.
-    3. Update `compose.yaml` manually if needed, then close this issue.
-
-    ### Diff (this repo vs upstream)
-
-```diff
-    BODYEOF
-
-    echo "$DIFF_CONTENT" >> /tmp/issue_body.md
-
-    cat >> /tmp/issue_body.md << 'BODYEOF'
-```
-
-    > This issue is opened automatically. It will not be reopened while one with the `upstream-sync` label is already open.
-    BODYEOF
-
-    gh issue create \
-      --title "Upstream compose.yaml has changed — manual review needed" \
-      --label "upstream-sync" \
-      --body-file /tmp/issue_body.md
+          gh issue create \
+            --title "Upstream compose.yaml has changed — manual review needed" \
+            --label "upstream-sync" \
+            --body-file /tmp/issue_body.md
