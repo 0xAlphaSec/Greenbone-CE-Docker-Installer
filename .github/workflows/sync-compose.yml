@@ -53,30 +53,38 @@ jobs:
           echo "open_count=$OPEN" >> "$GITHUB_OUTPUT"
  
       - name: Open notification issue
-        if: steps.diff.outputs.changed == 'true' && steps.check_issue.outputs.open_count == '0'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          DIFF_CONTENT="${{ steps.diff.outputs.diff_output }}"
-          gh issue create \
-            --title "Upstream compose.yaml has changed — manual review needed" \
-            --label "upstream-sync" \
-            --body "## Upstream compose.yaml update detected
- 
-          The official Greenbone compose file has changed since your last manual review.
- 
-          **Source:** https://greenbone.github.io/docs/latest/_static/compose.yaml
- 
-          ### What to do
- 
-          1. Review the diff below and check if any changes are relevant (new services, renamed images, new env vars, port changes, etc.).
-          2. Decide which changes to incorporate into the repo's \`compose.yaml\` — keeping your existing customizations.
-          3. Update \`compose.yaml\` manually if needed, then close this issue.
- 
-          ### Diff (this repo vs upstream)
- 
-          \`\`\`diff
-          ${DIFF_CONTENT}
-          \`\`\`
- 
-          > This issue is opened automatically. It will not be reopened while one with the \`upstream-sync\` label is already open."
+  if: steps.diff.outputs.changed == 'true' && steps.check_issue.outputs.open_count == '0'
+  env:
+    GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    DIFF_CONTENT: ${{ steps.diff.outputs.diff_output }}
+  run: |
+    cat > /tmp/issue_body.md << 'BODYEOF'
+    ## Upstream compose.yaml update detected
+
+    The official Greenbone compose file has changed since your last manual review.
+
+    **Source:** https://greenbone.github.io/docs/latest/_static/compose.yaml
+
+    ### What to do
+
+    1. Review the diff below and check if any changes are relevant (new services, renamed images, new env vars, port changes, etc.).
+    2. Decide which changes to incorporate into the repo's `compose.yaml` — keeping your existing customizations.
+    3. Update `compose.yaml` manually if needed, then close this issue.
+
+    ### Diff (this repo vs upstream)
+
+```diff
+    BODYEOF
+
+    echo "$DIFF_CONTENT" >> /tmp/issue_body.md
+
+    cat >> /tmp/issue_body.md << 'BODYEOF'
+```
+
+    > This issue is opened automatically. It will not be reopened while one with the `upstream-sync` label is already open.
+    BODYEOF
+
+    gh issue create \
+      --title "Upstream compose.yaml has changed — manual review needed" \
+      --label "upstream-sync" \
+      --body-file /tmp/issue_body.md
