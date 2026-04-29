@@ -3,7 +3,8 @@
 #==================================================
 # Greenbone Community Edition - Installer
 # Author: Jesús Fernández (@0xAlphaSec)
-# Versión: 2.0
+# Version: 3.0
+# Supports: Debian/Ubuntu (apt) | AlmaLinux/RHEL/Rocky (dnf)
 #==================================================
 
 # Colours
@@ -50,8 +51,40 @@ function banner(){
  ╚═════╝ ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  ╚═══╝╚═════╝  ╚═════╝ ╚═╝  ╚═══╝╚══════╝
 EOF
     echo -e "${endColour}"
-    echo -e "${grayColour}  Community Edition - Docker Installer v2.0${endColour}"
+    echo -e "${grayColour}  Community Edition - Docker Installer v3.0${endColour}"
     echo -e "${grayColour}  -----------------------------------------${endColour}"
+}
+
+#==========================
+# DISTRO DETECTION
+#==========================
+
+PKG_MANAGER=""
+DISTRO_NAME=""
+DOCKER_REPO_URL=""
+LEGACY_PKGS=""
+
+function detect_distro(){
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        DISTRO_NAME="${NAME}"
+    else
+        DISTRO_NAME="Unknown"
+    fi
+
+    if command -v dnf &>/dev/null; then
+        PKG_MANAGER="dnf"
+        DOCKER_REPO_URL="https://download.docker.com/linux/centos/docker-ce.repo"
+        LEGACY_PKGS="podman buildah docker"
+    elif command -v apt &>/dev/null; then
+        PKG_MANAGER="apt"
+        LEGACY_PKGS="docker.io docker-doc docker-compose podman-docker containerd runc"
+    else
+        log_error "Unsupported package manager. Only apt (Debian/Ubuntu) and dnf (RHEL/AlmaLinux/Rocky) are supported."
+        tput cnorm; exit 1
+    fi
+
+    echo -e "  ${blueColour}[*]${endColour}${grayColour} Detected: ${DISTRO_NAME} (${PKG_MANAGER})${endColour}\n"
 }
 
 # Global vars
@@ -97,7 +130,6 @@ function ask_network_mode(){
 }
 
 function ask_clean_mode(){
-    # Only relevant if Docker is already installed
     if ! command -v docker &>/dev/null; then
         CLEAN_MODE="none"
         return
@@ -144,6 +176,23 @@ function ask_clean_mode(){
 # PHASE 1 - CLEANUP
 #===========================
 
+function remove_legacy_packages(){
+    log_info "Removing conflicting legacy packages if present..."
+    for pkg in $LEGACY_PKGS; do
+        if [ "$PKG_MANAGER" = "dnf" ]; then
+            if rpm -q "$pkg" &>/dev/null; then
+                dnf remove -y "$pkg" &>/dev/null
+                log_ok "Removed: $pkg"
+            fi
+        elif [ "$PKG_MANAGER" = "apt" ]; then
+            if dpkg -l 2>/dev/null | grep -q "^ii  $pkg "; then
+                apt remove -y "$pkg" &>/dev/null
+                log_ok "Removed: $pkg"
+            fi
+        fi
+    done
+}
+
 function phase_cleanup_partial(){
     log_section "PHASE 1 - Partial Cleanup (Greenbone only)"
 
@@ -171,14 +220,7 @@ function phase_cleanup_partial(){
         log_info "No Greenbone volumes found."
     fi
 
-    log_info "Removing conflicting legacy Docker packages..."
-    for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do
-        if dpkg -l 2>/dev/null | grep -q "^ii  $pkg "; then
-            apt remove -y "$pkg" &>/dev/null
-            log_ok "Removed: $pkg"
-        fi
-    done
-
+    remove_legacy_packages
     log_ok "Partial cleanup complete."
 }
 
@@ -249,29 +291,38 @@ function phase_docker(){
         return
     fi
 
-    log_info "Installing dependencies..."
-    apt install -y ca-certificates curl gnupg &>/dev/null
-    log_ok "Dependencies installed."
+    if [ "$PKG_MANAGER" = "dnf" ]; then
+        log_info "Installing Docker (RHEL/AlmaLinux/Rocky)..."
+        dnf -y install dnf-plugins-core &>/dev/null
+        dnf config-manager --add-repo "$DOCKER_REPO_URL" &>/dev/null
+        dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin &>/dev/null
+        systemctl enable --now docker &>/dev/null
+        log_ok "Docker installed: $(docker --version)"
 
-    log_info "Adding Docker GPG key..."
-    install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
-        | gpg --dearmor -o /etc/apt/keyrings/docker.gpg &>/dev/null
-    chmod a+r /etc/apt/keyrings/docker.gpg
-    log_ok "GPG key added."
+    elif [ "$PKG_MANAGER" = "apt" ]; then
+        log_info "Installing Docker (Debian/Ubuntu)..."
+        apt install -y ca-certificates curl gnupg &>/dev/null
+        log_ok "Dependencies installed."
 
-    log_info "Adding Docker repository..."
-    echo \
-        "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+        log_info "Adding Docker GPG key..."
+        install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+            | gpg --dearmor -o /etc/apt/keyrings/docker.gpg &>/dev/null
+        chmod a+r /etc/apt/keyrings/docker.gpg
+        log_ok "GPG key added."
+
+        log_info "Adding Docker repository..."
+        echo \
+            "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
 https://download.docker.com/linux/ubuntu \
 $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
-        | tee /etc/apt/sources.list.d/docker.list > /dev/null
-    apt update &>/dev/null
-    log_ok "Repository added."
+            | tee /etc/apt/sources.list.d/docker.list > /dev/null
+        apt update &>/dev/null
+        log_ok "Repository added."
 
-    log_info "Installing Docker..."
-    apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin &>/dev/null
-    log_ok "Docker installed: $(docker --version)"
+        apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin &>/dev/null
+        log_ok "Docker installed: $(docker --version)"
+    fi
 
     log_info "Adding current user to docker group..."
     if [ -n "$SUDO_USER" ]; then
@@ -323,14 +374,24 @@ function phase_greenbone(){
     docker compose -f "$COMPOSE_FILE" up -d &>/dev/null
     log_ok "Containers started."
 
-    log_info "Waiting for gvmd to be ready..."
+    # Resolve gvmd container name dynamically
+    local GVMD_CONTAINER
+    GVMD_CONTAINER=$(docker ps --format '{{.Names}}' | grep "gvmd" | head -1)
+
+    if [ -z "$GVMD_CONTAINER" ]; then
+        log_warning "Could not find a running gvmd container."
+        log_warning "Set the password manually later with:"
+        echo -e "  ${turquoiseColour}docker compose -f ${COMPOSE_FILE} exec -u gvmd gvmd gvmd --user=admin --new-password='<password>'${endColour}"
+        return
+    fi
+
+    log_info "Waiting for gvmd to be ready (container: ${GVMD_CONTAINER})..."
     local retries=0
     local max=30
     local status=""
 
     while [ $retries -lt $max ]; do
-        status=$(docker inspect --format='{{.State.Health.Status}}' \
-            greenbone-community-edition-gvmd-1 2>/dev/null)
+        status=$(docker inspect --format='{{.State.Health.Status}}' "$GVMD_CONTAINER" 2>/dev/null)
         if [ "$status" = "healthy" ]; then
             break
         fi
@@ -375,6 +436,7 @@ function summary(){
     echo -e "${greenColour}║      Greenbone Community Edition is ready!       ║${endColour}"
     echo -e "${greenColour}╚══════════════════════════════════════════════════╝${endColour}"
     echo ""
+    echo -e "  ${grayColour}Distro      :${endColour}  ${turquoiseColour}${DISTRO_NAME} (${PKG_MANAGER})${endColour}"
     echo -e "  ${grayColour}Access URL  :${endColour}  ${turquoiseColour}${access_url}${endColour}"
     echo -e "  ${grayColour}Username    :${endColour}  ${turquoiseColour}admin${endColour}"
     echo -e "  ${grayColour}Password    :${endColour}  ${turquoiseColour}(the one you entered)${endColour}"
@@ -392,6 +454,7 @@ tput civis  # hide cursor
 
 check_root
 banner
+detect_distro
 
 # Interactive setup (all questions upfront)
 ask_password
@@ -404,13 +467,7 @@ case "$CLEAN_MODE" in
     deep)    phase_cleanup_deep ;;
     none)
         log_section "PHASE 1 - Cleanup"
-        log_info "Removing conflicting legacy Docker packages if present..."
-        for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do
-            if dpkg -l 2>/dev/null | grep -q "^ii  $pkg "; then
-                apt remove -y "$pkg" &>/dev/null
-                log_ok "Removed: $pkg"
-            fi
-        done
+        remove_legacy_packages
         log_ok "Done."
         ;;
 esac
